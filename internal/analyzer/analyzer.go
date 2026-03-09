@@ -14,6 +14,8 @@ var Analyzer = &analysis.Analyzer{
 }
 
 func run(pass *analysis.Pass) (any, error) {
+	assignments := buildAssignmentIndex(pass)
+
 	for _, file := range pass.Files {
 		ast.Inspect(file, func(n ast.Node) bool {
 			call, ok := n.(*ast.CallExpr)
@@ -21,14 +23,18 @@ func run(pass *analysis.Pass) (any, error) {
 				return true
 			}
 
-			msg, pos, ok := extractLogMessage(pass, call)
-
+			msg, pos, complete, ok := extractLogMessage(pass, assignments, call)
 			if !ok {
 				return true
 			}
-			
-			for _, v := range rules.ValidateMessage(msg) {
-				pass.Reportf(pos,"%s", v.Message)
+
+			violations := rules.ValidateMessage(msg)
+			if !complete {
+				violations = rules.ValidatePartialMessage(msg)
+			}
+
+			for _, v := range violations {
+				pass.Reportf(pos, "%s", v.Message)
 			}
 
 			return true
