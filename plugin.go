@@ -16,6 +16,8 @@ func New(_ any) (register.LinterPlugin, error) {
 
 type plugin struct{}
 
+var _ register.LinterPlugin = new(plugin)
+
 func (*plugin) BuildAnalyzers() ([]*analysis.Analyzer, error) {
 	return []*analysis.Analyzer{
 		analyzer.Analyzer,
