@@ -28,7 +28,7 @@ func extractLogMessage(call *ast.CallExpr) (string, token.Pos, bool) {
 		return "", token.NoPos, false
 	}
 
-	if ident.Name != "log" && ident.Name != "logger" {
+	if ident.Name != "log" && ident.Name != "logger" && ident.Name != "slog" {
 		return "", token.NoPos, false
 	}
 
