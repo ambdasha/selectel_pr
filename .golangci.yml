@@ -9,3 +9,4 @@ linters:
       logmsglint:
         type: module
         description: checks log messages for style and secrets
+        original-url: github.com/ambdasha/logmsglint/internal/analyzer

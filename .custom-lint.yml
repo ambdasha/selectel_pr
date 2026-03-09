@@ -1,6 +1,0 @@
-version: v2.11.1
-
-plugins:
-  - module: github.com/ambdasha/logmsglint
-    path: .
-    import: github.com/ambdasha/logmsglint
