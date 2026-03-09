@@ -1,0 +1,11 @@
+version: "2"
+
+linters:
+  default: none
+  enable:
+    - logmsglint
+  settings:
+    custom:
+      logmsglint:
+        type: module
+        description: checks log messages for style and secrets
