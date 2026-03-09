@@ -21,10 +21,12 @@ func run(pass *analysis.Pass) (any, error) {
 				return true
 			}
 
-			msg, pos, ok := extractLogMessage(call)
+			msg, pos, ok := extractLogMessage(pass, call)
+
 			if !ok {
 				return true
 			}
+			
 			for _, v := range rules.ValidateMessage(msg) {
 				pass.Reportf(pos,"%s", v.Message)
 			}
