@@ -26,7 +26,7 @@ func run(pass *analysis.Pass) (any, error) {
 				return true
 			}
 			for _, v := range rules.ValidateMessage(msg) {
-				pass.Reportf(pos, v.Message)
+				pass.Reportf(pos,"%s", v.Message)
 			}
 
 			return true
