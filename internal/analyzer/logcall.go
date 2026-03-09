@@ -163,7 +163,6 @@ func extractLogMessage(pass *analysis.Pass, idx assignmentIndex, call *ast.CallE
 	return msg, pos, complete, true
 }
 
-
 func isSupportedLoggerCall(pass *analysis.Pass, sel *ast.SelectorExpr) bool {
 	if pass == nil || pass.TypesInfo == nil {
 		return false

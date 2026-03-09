@@ -3,17 +3,24 @@ package analyzer
 import (
 	"go/ast"
 
+	"github.com/ambdasha/logmsglint/internal/config"
 	"github.com/ambdasha/logmsglint/internal/rules"
 	"golang.org/x/tools/go/analysis"
 )
 
-var Analyzer = &analysis.Analyzer{
-	Name: "logmsglint",
-	Doc:  "checks log messages for formatting and sensitive data",
-	Run:  run,
+var Analyzer = New(config.Default())
+
+func New(cfg config.Config) *analysis.Analyzer {
+	return &analysis.Analyzer{
+		Name: "logmsglint",
+		Doc:  "checks log messages for formatting and sensitive data",
+		Run: func(pass *analysis.Pass) (any, error) {
+			return run(pass, cfg)
+		},
+	}
 }
 
-func run(pass *analysis.Pass) (any, error) {
+func run(pass *analysis.Pass, cfg config.Config) (any, error) {
 	assignments := buildAssignmentIndex(pass)
 
 	for _, file := range pass.Files {
@@ -28,9 +35,9 @@ func run(pass *analysis.Pass) (any, error) {
 				return true
 			}
 
-			violations := rules.ValidateMessage(msg)
+			violations := rules.ValidateMessage(msg, cfg)
 			if !complete {
-				violations = rules.ValidatePartialMessage(msg)
+				violations = rules.ValidatePartialMessage(msg, cfg)
 			}
 
 			for _, v := range violations {

@@ -9,4 +9,14 @@ linters:
       logmsglint:
         type: module
         description: checks log messages for style and secrets
-        original-url: github.com/ambdasha/logmsglint/internal/analyzer
+        settings:
+          check-lowercase: true
+          check-english-only: true
+          check-special-symbols: true
+          check-sensitive-data: true
+          allow-dash: true
+          sensitive-keywords:
+            - password
+            - token
+            - secret
+            - api_key

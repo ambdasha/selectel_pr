@@ -3,6 +3,8 @@ package rules
 import (
 	"strings"
 	"unicode"
+
+	"github.com/ambdasha/logmsglint/internal/config"
 )
 
 type Violation struct {
@@ -16,41 +18,30 @@ const (
 	sensitiveDataMessage  = "log message must not contain potentially sensitive data"
 )
 
-var sensitiveKeywords = []string{
-	"password",
-	"passwd",
-	"token",
-	"api_key",
-	"apikey",
-	"secret",
-	"access_key",
-	"private_key",
-}
-
-func ValidateMessage(msg string) []Violation {
+func ValidateMessage(msg string, cfg config.Config) []Violation {
 	var out []Violation
 
-	if !startsWithLower(msg) {
+	if cfg.CheckLowercase && !startsWithLower(msg) {
 		out = append(out, Violation{Message: startLowerMessage})
 	}
 
-	if !englishOnly(msg) {
+	if cfg.CheckEnglishOnly && !englishOnly(msg) {
 		out = append(out, Violation{Message: englishOnlyMessage})
 	}
 
-	if hasSpecialSymbolsOrEmoji(msg) {
+	if cfg.CheckSpecialSymbols && hasSpecialSymbolsOrEmoji(msg, cfg.AllowDash) {
 		out = append(out, Violation{Message: specialSymbolsMessage})
 	}
 
-	if containsSensitiveData(msg) {
+	if cfg.CheckSensitiveData && containsSensitiveData(msg, cfg.SensitiveKeywords) {
 		out = append(out, Violation{Message: sensitiveDataMessage})
 	}
 
 	return out
 }
 
-func ValidatePartialMessage(msg string) []Violation {
-	if containsSensitiveData(msg) {
+func ValidatePartialMessage(msg string, cfg config.Config) []Violation {
+	if cfg.CheckSensitiveData && containsSensitiveData(msg, cfg.SensitiveKeywords) {
 		return []Violation{{Message: sensitiveDataMessage}}
 	}
 
@@ -82,12 +73,12 @@ func englishOnly(s string) bool {
 	return true
 }
 
-func hasSpecialSymbolsOrEmoji(s string) bool {
+func hasSpecialSymbolsOrEmoji(s string, allowDash bool) bool {
 	for _, r := range s {
 		switch {
 		case unicode.IsLetter(r), unicode.IsDigit(r), unicode.IsSpace(r):
 			continue
-		case r == '-':
+		case allowDash && r == '-':
 			continue
 		default:
 			return true
@@ -97,10 +88,10 @@ func hasSpecialSymbolsOrEmoji(s string) bool {
 	return false
 }
 
-func containsSensitiveData(s string) bool {
+func containsSensitiveData(s string, sensitiveKeywords []string) bool {
 	low := strings.ToLower(s)
 	for _, kw := range sensitiveKeywords {
-		if strings.Contains(low, kw) {
+		if strings.Contains(low, strings.ToLower(kw)) {
 			return true
 		}
 	}

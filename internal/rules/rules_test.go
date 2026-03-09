@@ -1,6 +1,10 @@
 package rules
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/ambdasha/logmsglint/internal/config"
+)
 
 func hasViolation(violations []Violation, msg string) bool {
 	for _, v := range violations {
@@ -55,26 +59,30 @@ func TestEnglishOnly(t *testing.T) {
 
 func TestHasSpecialSymbolsOrEmoji(t *testing.T) {
 	tests := []struct {
-		name  string
-		input string
-		want  bool
+		name      string
+		input     string
+		allowDash bool
+		want      bool
 	}{
-		{name: "plain text", input: "starting server", want: false},
-		{name: "dash allowed", input: "starting-server", want: false},
-		{name: "exclamation", input: "server started!", want: true},
-		{name: "emoji", input: "server started 🚀", want: true},
+		{name: "plain text", input: "starting server", allowDash: true, want: false},
+		{name: "dash allowed", input: "starting-server", allowDash: true, want: false},
+		{name: "dash disallowed", input: "starting-server", allowDash: false, want: true},
+		{name: "exclamation", input: "server started!", allowDash: true, want: true},
+		{name: "emoji", input: "server started 🚀", allowDash: true, want: true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := hasSpecialSymbolsOrEmoji(tt.input); got != tt.want {
-				t.Fatalf("hasSpecialSymbolsOrEmoji(%q) = %v, want %v", tt.input, got, tt.want)
+			if got := hasSpecialSymbolsOrEmoji(tt.input, tt.allowDash); got != tt.want {
+				t.Fatalf("hasSpecialSymbolsOrEmoji(%q, %v) = %v, want %v", tt.input, tt.allowDash, got, tt.want)
 			}
 		})
 	}
 }
 
 func TestContainsSensitiveData(t *testing.T) {
+	keywords := []string{"password", "token", "private_key"}
+
 	tests := []struct {
 		name  string
 		input string
@@ -88,7 +96,7 @@ func TestContainsSensitiveData(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := containsSensitiveData(tt.input); got != tt.want {
+			if got := containsSensitiveData(tt.input, keywords); got != tt.want {
 				t.Fatalf("containsSensitiveData(%q) = %v, want %v", tt.input, got, tt.want)
 			}
 		})
@@ -96,7 +104,8 @@ func TestContainsSensitiveData(t *testing.T) {
 }
 
 func TestValidateMessage(t *testing.T) {
-	violations := ValidateMessage("Starting password!")
+	cfg := config.Default()
+	violations := ValidateMessage("Starting password!", cfg)
 
 	if !hasViolation(violations, startLowerMessage) {
 		t.Fatalf("expected violation %q", startLowerMessage)
@@ -112,14 +121,36 @@ func TestValidateMessage(t *testing.T) {
 }
 
 func TestValidatePartialMessage(t *testing.T) {
-	violations := ValidatePartialMessage("user password: ")
+	cfg := config.Default()
+	violations := ValidatePartialMessage("user password: ", cfg)
 
 	if !hasViolation(violations, sensitiveDataMessage) {
 		t.Fatalf("expected violation %q", sensitiveDataMessage)
 	}
 
-	violations = ValidatePartialMessage("starting server")
+	violations = ValidatePartialMessage("starting server", cfg)
 	if len(violations) != 0 {
 		t.Fatalf("expected no violations, got %v", violations)
+	}
+}
+
+func TestValidateMessageWithConfig(t *testing.T) {
+	cfg := config.Default()
+	cfg.CheckLowercase = false
+	cfg.CheckSpecialSymbols = false
+	cfg.SensitiveKeywords = []string{"secret"}
+
+	violations := ValidateMessage("Starting password!", cfg)
+
+	if hasViolation(violations, startLowerMessage) {
+		t.Fatalf("did not expect violation %q", startLowerMessage)
+	}
+
+	if hasViolation(violations, specialSymbolsMessage) {
+		t.Fatalf("did not expect violation %q", specialSymbolsMessage)
+	}
+
+	if hasViolation(violations, sensitiveDataMessage) {
+		t.Fatalf("did not expect violation %q", sensitiveDataMessage)
 	}
 }
