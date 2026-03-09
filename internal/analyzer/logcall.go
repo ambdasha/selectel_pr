@@ -12,30 +12,43 @@ var logMethods = map[string]struct{}{
 	"Warn":  {},
 	"Error": {},
 }
-
 func extractLogMessage(call *ast.CallExpr) (string, token.Pos, bool) {
-	sel, ok := call.Fun.(*ast.SelectorExpr)
+	selector, ok := call.Fun.(*ast.SelectorExpr)
 	if !ok {
 		return "", token.NoPos, false
 	}
 
-	if _, ok := logMethods[sel.Sel.Name]; !ok {
+	method := selector.Sel.Name
+	if _, ok := logMethods[method]; !ok {
 		return "", token.NoPos, false
 	}
 
-	if len(call.Args) == 0 {
+	ident, ok := selector.X.(*ast.Ident)
+	if !ok {
 		return "", token.NoPos, false
 	}
 
-	lit, ok := call.Args[0].(*ast.BasicLit)
-	if !ok || lit.Kind != token.STRING {
+	if ident.Name != "log" && ident.Name != "logger" {
 		return "", token.NoPos, false
 	}
 
-	msg, err := strconv.Unquote(lit.Value)
+	if len(call.Args) < 1 {
+		return "", token.NoPos, false
+	}
+
+	firstArg, ok := call.Args[0].(*ast.BasicLit)
+	if !ok {
+		return "", token.NoPos, false
+	}
+
+	if firstArg.Kind != token.STRING {
+		return "", token.NoPos, false
+	}
+
+	text, err := strconv.Unquote(firstArg.Value)
 	if err != nil {
 		return "", token.NoPos, false
 	}
 
-	return msg, lit.Pos(), true
+	return text, firstArg.Pos(), true
 }
