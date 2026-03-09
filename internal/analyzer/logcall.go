@@ -163,11 +163,18 @@ func extractLogMessage(pass *analysis.Pass, idx assignmentIndex, call *ast.CallE
 	return msg, pos, complete, true
 }
 
+
 func isSupportedLoggerCall(pass *analysis.Pass, sel *ast.SelectorExpr) bool {
+	if pass == nil || pass.TypesInfo == nil {
+		return false
+	}
+
 	if ident, ok := sel.X.(*ast.Ident); ok {
-		if pkgName, ok := pass.TypesInfo.Uses[ident].(*types.PkgName); ok {
-			if pkgName.Imported() != nil && pkgName.Imported().Path() == "log/slog" {
-				return true
+		if obj := pass.TypesInfo.Uses[ident]; obj != nil {
+			if pkgName, ok := obj.(*types.PkgName); ok {
+				if pkgName.Imported() != nil && pkgName.Imported().Path() == "log/slog" {
+					return true
+				}
 			}
 		}
 	}
@@ -175,6 +182,8 @@ func isSupportedLoggerCall(pass *analysis.Pass, sel *ast.SelectorExpr) bool {
 	typ := pass.TypesInfo.TypeOf(sel.X)
 	return isSupportedLoggerType(typ)
 }
+
+
 
 func isSupportedLoggerType(t types.Type) bool {
 	if t == nil {
@@ -220,7 +229,13 @@ func extractStringExpr(
 		if e.Kind != token.STRING {
 			return "", token.NoPos, false, false
 		}
-		return constantStringExpr(pass, expr)
+
+		s, pos, ok := constantStringExpr(pass, expr)
+		if !ok {
+			return "", token.NoPos, false, false
+		}
+
+		return s, pos, true, true
 
 	case *ast.BinaryExpr:
 		if e.Op != token.ADD {
@@ -242,8 +257,8 @@ func extractStringExpr(
 		}
 
 	case *ast.Ident:
-		if s, pos, ok := constantStringExpr(pass, expr); ok {
-			return s, pos, true, true
+		if s, _, ok := constantStringExpr(pass, expr); ok {
+			return s, e.Pos(), true, true
 		}
 
 		obj := pass.TypesInfo.Uses[e]
@@ -263,7 +278,12 @@ func extractStringExpr(
 		seen[obj] = true
 		defer delete(seen, obj)
 
-		return extractStringExpr(pass, idx, sourceExpr, seen)
+		s, _, complete, ok := extractStringExpr(pass, idx, sourceExpr, seen)
+		if !ok {
+			return "", token.NoPos, false, false
+		}
+
+		return s, e.Pos(), complete, true
 
 	case *ast.CallExpr:
 		if isFmtSprintfCall(pass, e) {
@@ -322,19 +342,19 @@ func extractSprintfCall(
 	}
 
 	if !formatComplete {
-		return format, call.Args[0].Pos(), false, true
+		return format, call.Pos(), false, true
 	}
 
 	args := make([]any, 0, len(call.Args)-1)
 	for _, arg := range call.Args[1:] {
 		value, ok := extractConstValue(pass, idx, arg, seen)
 		if !ok {
-			return format, call.Args[0].Pos(), false, true
+			return format, call.Pos(), false, true
 		}
 		args = append(args, value)
 	}
 
-	return fmt.Sprintf(format, args...), call.Args[0].Pos(), true, true
+	return fmt.Sprintf(format, args...), call.Pos(), true, true
 }
 
 func extractConstValue(
